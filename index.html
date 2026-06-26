@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Islet Proteomics Explorer</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root{--sage:#8A9A7B;--sage-dark:#6B7A5E;--cream:#F5F1E8;--sand:#E8DFCF;--taupe:#A89B86;--terra:#C08552;--ink:#36322C}
+body{font-family:system-ui,sans-serif;background:var(--cream);color:var(--ink);margin:0}
+.hdr{background:linear-gradient(135deg,var(--sage),var(--sage-dark));color:var(--cream);padding:1.5rem}
+.hdr h1{margin:0;font-size:1.8rem}
+.hdr p{margin:.3rem 0 0;opacity:.9;font-size:.9rem}
+.card{border:none;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.08);background:#fff}
+.card-head{background:var(--sage);color:var(--cream);padding:.8rem 1.2rem;border-radius:12px 12px 0 0;font-weight:600}
+.btn-go{background:var(--terra);color:#fff;border:none;font-weight:600}
+.btn-go:hover{background:#a86f42;color:#fff}
+.nav-tabs .nav-link.active{color:var(--sage-dark);border-bottom:3px solid var(--terra);font-weight:600}
+.chip{display:inline-block;background:#B5C4A6;padding:.25rem .7rem;border-radius:14px;margin:.15rem;font-size:.85rem}
+.chip span{cursor:pointer;margin-left:.4rem;font-weight:700;color:var(--sage-dark)}
+#status{padding:1rem;text-align:center;color:var(--taupe)}
+</style>
+</head>
+<body>
+<div class="hdr"><h1>🔬 Islet Cell Proteomics Explorer</h1><p>Proteome stratification across islet samples & adult tissues</p></div>
+<div id="status">⏳ Loading data…</div>
+<div class="container-fluid p-3" id="app" style="display:none">
+<ul class="nav nav-tabs mb-3">
+<li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#v">📊 Visualization</button></li>
+<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#t">📋 Data Table</button></li>
+</ul>
+<div class="tab-content">
+<div class="tab-pane fade show active" id="v">
+<div class="row">
+<div class="col-md-3"><div class="card"><div class="card-head">Filters</div><div class="p-3">
+<label class="form-label fw-bold">Search Gene</label>
+<input class="form-control mb-2" id="search" list="dl" placeholder="e.g. SEPTIN2">
+<datalist id="dl"></datalist>
+<div id="chips" class="mb-2"></div>
+<hr>
+<label class="form-label fw-bold">Upload Gene List</label>
+<input type="file" class="form-control mb-3" id="upload" accept=".txt,.csv">
+<button class="btn btn-go w-100 mb-2" onclick="plot()">Plot</button>
+<button class="btn btn-outline-secondary w-100 mb-2" onclick="reset()">Reset</button>
+<button class="btn btn-outline-secondary w-100" onclick="dlPlot()">💾 Download Plot</button>
+</div></div></div>
+<div class="col-md-9"><div class="card"><div class="p-2"><div id="plot" style="height:600px"></div></div></div></div>
+</div>
+</div>
+<div class="tab-pane fade" id="t">
+<div class="row">
+<div class="col-md-3"><div class="card"><div class="card-head">Metric Filters</div><div class="p-3">
+<label class="form-label fw-bold">Min Peptide Count: <span id="pv" style="color:var(--terra)">0</span></label>
+<input type="range" class="form-range" id="pep" min="0" max="436" value="0" oninput="document.getElementById('pv').textContent=this.value;filterTable()">
+<label class="form-label fw-bold mt-3">Min Islet Abundance: <span id="iv" style="color:var(--terra)">0</span></label>
+<input type="range" class="form-range" id="isl" min="0" max="13399" value="0" oninput="document.getElementById('iv').textContent=this.value;filterTable()">
+<hr><div class="text-center"><div style="font-size:2rem;color:var(--terra);font-weight:700" id="cnt">0</div><small>proteins shown</small></div>
+</div></div></div>
+<div class="col-md-9"><div class="card"><div class="p-2" style="overflow:auto;max-height:700px"><table class="table table-sm table-hover"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></div></div>
+</div>
+</div>
+</div>
+</div>
+<script>
+// ===== CONFIG: YOUR EXACT COLUMNS =====
+const ID_COLS=['accession','Uniprot','GeneSy','description'];
+const ISLET=[ // striking terracotta tones, in your preferred order
+{key:'EndoC BH1',label:'EndoC-BH1',color:'#C08552'},
+{key:'Islets',label:'Islets (untreated)',color:'#D49A6A'},
+{key:'Islets_cytokine',label:'Islets (treated)',color:'#B5703C'},
+{key:'Alpha cells',label:'Alpha cells',color:'#E0B589'},
+{key:'Beta cells',label:'Beta cells',color:'#A65E2E'}
+];
+const TISSUES=['Pancreas','Frontal cortex','Adrenalgland','Bcells','CD4cells','CD8cells','Monocyte','NKcells','Platelet','Colon','Esophagus','Gallbladder','Heart','Kidney','Liver','Lung','Ovary','Prostate','Rectum','Retina','Spinalcord','Testis','Urinarybladder'];
+const TISSUE_COLOR='#A89B86';
+
+let DATA=[],selected=new Set();
+
+// ===== LOAD CSV =====
+Papa.parse('data/proteome_data.csv',{
+  download:true,header:true,dynamicTyping:false,skipEmptyLines:true,
+  complete:r=>{
+    DATA=r.data;
+    document.getElementById('status').style.display='none';
+    document.getElementById('app').style.display='block';
+    initSearch();buildTable();
+    console.log('✅ Loaded '+DATA.length+' proteins');
+  },
+  error:e=>{document.getElementById('status').innerHTML='❌ Error loading data: '+e;}
+});
+
+function num(v){let n=parseFloat(v);return isNaN(n)?0:n;}
+
+// ===== SEARCH SETUP =====
+function initSearch(){
+  const dl=document.getElementById('dl');
+  [...new Set(DATA.map(d=>d.GeneSy).filter(Boolean))].sort().forEach(g=>{
+    const o=document.createElement('option');o.value=g;dl.appendChild(o);
+  });
+  document.getElementById('search').addEventListener('change',function(){
+    if(this.value){addGene(this.value);this.value='';}
+  });
+}
+
+// ===== GENE CHIPS =====
+function addGene(g){
+  selected.add(g);
+  renderChips();
+}
+function renderChips(){
+  document.getElementById('chips').innerHTML=[...selected].map(g=>
+    `<span class="chip">${g}<span onclick="removeGene('${g}')">×</span></span>`
+  ).join('');
+}
+function removeGene(g){selected.delete(g);renderChips();}
+
+// ===== UPLOAD =====
+document.getElementById('upload').addEventListener('change',function(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    ev.target.result.split(/[\r\n,]+/).map(s=>s.trim()).filter(Boolean).forEach(g=>selected.add(g));
+    renderChips();plot();
+  };
+  r.readAsText(f);
+});
+
+// ===== PLOT =====
+function plot(){
+  if(selected.size===0){alert('Search or upload at least one gene first');return;}
+  const rows=DATA.filter(d=>selected.has(d.GeneSy));
+  if(rows.length===0){alert('No matching genes found');return;}
+
+  const cats=[...ISLET.map(i=>i.label),...TISSUES];
+
+  // ===== HEATMAP for >2 genes =====
+  if(rows.length>2){
+    const z=rows.map(row=>[...ISLET.map(i=>num(row[i.key])),...TISSUES.map(t=>num(row[t]))]);
+    const genes=rows.map(r=>r.GeneSy);
+    Plotly.newPlot('plot',[{
+      z:z,
+      x:cats,
+      y:genes,
+      type:'heatmap',
+      colorscale:[[0,'#F5F1E8'],[0.3,'#B5C4A6'],[0.6,'#8A9A7B'],[1,'#C08552']],
+      colorbar:{title:'Spectral<br>Counts'}
+    }],{
+      title:rows.length+' Proteins — Abundance Heatmap',
+      xaxis:{title:'Sample / Tissue',tickangle:-45},
+      yaxis:{title:'Gene',automargin:true},
+      margin:{b:140,l:100},
+      paper_bgcolor:'#F5F1E8',plot_bgcolor:'#fff'
+    },{responsive:true});
+    return;
+  }
+
+  // ===== BAR CHART for 1-2 genes =====
+  const traces=rows.map(row=>({
+    x:cats,
+    y:[...ISLET.map(i=>num(row[i.key])),...TISSUES.map(t=>num(row[t]))],
+    name:row.GeneSy,
+    type:'bar',
+    marker:{color:[...ISLET.map(i=>i.color),...TISSUES.map(()=>TISSUE_COLOR)]}
+  }));
+
+  Plotly.newPlot('plot',traces,{
+    title:rows.length===1?rows[0].GeneSy+' — '+rows[0].description:'Selected Proteins',
+    xaxis:{title:'Sample / Tissue',tickangle:-45},
+    yaxis:{title:'Spectral Counts (abundance)'},
+    barmode:rows.length>1?'group':'stack',
+    margin:{b:140},
+    paper_bgcolor:'#F5F1E8',plot_bgcolor:'#fff'
+  },{responsive:true});
+}
+
+function reset(){
+  selected.clear();renderChips();
+  document.getElementById('plot').innerHTML='';
+  document.getElementById('search').value='';
+}
+
+function dlPlot(){
+  Plotly.downloadImage('plot',{format:'png',width:1400,height:700,filename:'proteome_plot'});
+}
+
+// ===== DATA TABLE =====
+function buildTable(){
+  const cols=['GeneSy','Uniprot','accession','CountOfpeptide','All_Islet Cells','Pancreas','Liver'];
+  document.getElementById('thead').innerHTML='<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  filterTable();
+}
+
+function filterTable(){
+  const minPep=+document.getElementById('pep').value;
+  const minIsl=+document.getElementById('isl').value;
+  const cols=['GeneSy','Uniprot','accession','CountOfpeptide','All_Islet Cells','Pancreas','Liver'];
+  const filtered=DATA.filter(d=>num(d.CountOfpeptide)>=minPep && num(d['All_Islet Cells'])>=minIsl);
+  document.getElementById('cnt').textContent=filtered.length;
+  document.getElementById('tbody').innerHTML=filtered.slice(0,500).map(d=>
+    '<tr>'+cols.map(c=>`<td>${d[c]||''}</td>`).join('')+'</tr>'
+  ).join('');
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
