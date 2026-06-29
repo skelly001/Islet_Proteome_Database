@@ -8,24 +8,84 @@
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
-:root{--sage:#8A9A7B;--sage-dark:#6B7A5E;--cream:#F5F1E8;--sand:#E8DFCF;--taupe:#A89B86;--terra:#C08552;--ink:#36322C}
-body{font-family:system-ui,sans-serif;background:var(--cream);color:var(--ink);margin:0}
-.hdr{background:linear-gradient(135deg,var(--sage),var(--sage-dark));color:var(--cream);padding:1.5rem}
-.hdr h1{margin:0;font-size:1.8rem}
-.hdr p{margin:.3rem 0 0;opacity:.9;font-size:.9rem}
-.card{border:none;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.08);background:#fff}
-.card-head{background:var(--sage);color:var(--cream);padding:.8rem 1.2rem;border-radius:12px 12px 0 0;font-weight:600}
-.btn-go{background:var(--terra);color:#fff;border:none;font-weight:600}
-.btn-go:hover{background:#a86f42;color:#fff}
-.nav-tabs .nav-link.active{color:var(--sage-dark);border-bottom:3px solid var(--terra);font-weight:600}
-.chip{display:inline-block;background:#B5C4A6;padding:.25rem .7rem;border-radius:14px;margin:.15rem;font-size:.85rem}
-.chip span{cursor:pointer;margin-left:.4rem;font-weight:700;color:var(--sage-dark)}
+body{
+  font-family:system-ui,sans-serif;color:#1a1a1a;margin:0;
+  background:linear-gradient(135deg,#EBF0F5 0%,#DCE6F0 100%);
+  min-height:100vh;
+}
+/* force ALL text dark, including header */
+*{color:#1a1a1a !important}
+/* keep accent colors */
+.card-head{background:linear-gradient(135deg,var(--blue),var(--navy))}
+.nav-tabs .nav-link.active{color:var(--blue) !important}
+#cnt,#pv,#iv{color:var(--red) !important}
+.hdr::before{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background-image:radial-gradient(circle at 20% 50%,rgba(255,255,255,.08) 0%,transparent 50%),
+                   radial-gradient(circle at 80% 30%,rgba(162,218,224,.12) 0%,transparent 40%);
+  pointer-events:none;
+}
+.hdr h1{
+  margin:0;font-size:2.4rem;font-weight:700;position:relative;
+  letter-spacing:.5px;text-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.hdr p{
+  margin:.5rem 0 0;opacity:.92;font-size:1rem;position:relative;
+  font-weight:300;letter-spacing:1px;
+}
+.hdr .badge-row{margin-top:1rem;position:relative}
+.hdr .stat-badge{
+  display:inline-block;background:rgba(255,255,255,.15);
+  backdrop-filter:blur(10px);padding:.4rem 1rem;border-radius:20px;
+  margin-right:.5rem;font-size:.85rem;border:1px solid rgba(255,255,255,.2);
+}
+.card{
+  border:none;border-radius:14px;
+  box-shadow:0 6px 24px rgba(6,6,93,.1);background:#fff;
+  transition:transform .2s,box-shadow .2s;
+}
+.card:hover{box-shadow:0 8px 30px rgba(6,6,93,.15)}
+.card-head{
+  background:linear-gradient(135deg,var(--blue),var(--navy));
+  color:#fff;padding:.9rem 1.3rem;border-radius:14px 14px 0 0;
+  font-weight:600;letter-spacing:.5px;
+}
+.nav-tabs{border-bottom:2px solid #d0dae5;padding:0 1rem}
+.nav-tabs .nav-link{color:#6b7a8d;font-weight:500;border:none;padding:.7rem 1.4rem}
+.nav-tabs .nav-link:hover{color:var(--blue);background:rgba(14,73,181,.05)}
+.nav-tabs .nav-link.active{
+  color:var(--blue);background:transparent;
+  border-bottom:3px solid var(--red);font-weight:600;
+}
+.btn-go{
+  background:linear-gradient(135deg,var(--red),var(--darkred));
+  color:#fff;border:none;font-weight:600;border-radius:8px;
+  padding:.6rem;transition:transform .15s,box-shadow .15s;
+}
+.btn-go:hover{
+  background:linear-gradient(135deg,var(--darkred),#8a0105);
+  color:#fff;transform:translateY(-2px);
+  box-shadow:0 4px 12px rgba(237,1,1,.3);
+}
+.nav-tabs .nav-link.active{color:var(--blue);border-bottom:3px solid var(--red);font-weight:600}
+.chip{display:inline-block;background:var(--lightblue);padding:.25rem .7rem;border-radius:14px;margin:.15rem;font-size:.85rem;color:var(--navy)}
+.chip span{cursor:pointer;margin-left:.4rem;font-weight:700;color:var(--darkred)}
 #status{padding:1rem;text-align:center;color:var(--taupe)}
-</style>
+.sort-btn{background:#fff;color:#839bc7;border:1px solid #839bc7;font-weight:600;padding:.35rem 1rem}
+.sort-btn:hover{background:#dce8f7;color:#839bc7}
+.sort-btn.active{background:#839bc7;color:#fff;border-color:#839bc7}
+.sort-btn.active:hover{background:#839bc7;color:#fff}</style>
 </head>
 <body>
-<div class="hdr"><h1>🔬 Islet Cell Proteomics Explorer</h1><p>Proteome stratification across islet samples & adult tissues</p></div>
-<div id="status">⏳ Loading data…</div>
+<div class="hdr">
+  <h1>🔬 Islet Cell Proteomics Explorer</h1>
+  <p>Proteome stratification across islet samples &amp; 23 adult tissues</p>
+  <div class="badge-row">
+    <span class="stat-badge">🧬 <span id="geneCount">—</span> proteins</span>
+    <span class="stat-badge">🩸 5 islet samples</span>
+    <span class="stat-badge">🫀 23 tissues</span>
+  </div>
+</div><div id="status">⏳ Loading data…</div>
 <div class="container-fluid p-3" id="app" style="display:none">
 <ul class="nav nav-tabs mb-3">
 <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#v">📊 Visualization</button></li>
@@ -46,17 +106,28 @@ body{font-family:system-ui,sans-serif;background:var(--cream);color:var(--ink);m
 <button class="btn btn-outline-secondary w-100 mb-2" onclick="reset()">Reset</button>
 <button class="btn btn-outline-secondary w-100" onclick="dlPlot()">💾 Download Plot</button>
 </div></div></div>
-<div class="col-md-9"><div class="card"><div class="p-2"><div id="plot" style="height:600px"></div></div></div></div>
+<div class="col-md-9"><div class="card"><div class="p-2">
+<div class="d-flex justify-content-end mb-2">
+  <div class="btn-group" role="group">
+    <button class="btn btn-sm sort-btn active" id="sortOrgan" onclick="setSort('organ')">Organ</button>
+    <button class="btn btn-sm sort-btn" id="sortExpr" onclick="setSort('expression')">Expression</button>
+    <button class="btn btn-sm sort-btn" id="sortAlpha" onclick="setSort('alpha')">Alphabetical</button>
+  </div>
 </div>
+<div id="plot" style="height:600px"></div>
+</div></div></div></div>
 </div>
 <div class="tab-pane fade" id="t">
 <div class="row">
+
 <div class="col-md-3"><div class="card"><div class="card-head">Metric Filters</div><div class="p-3">
-<label class="form-label fw-bold">Min Peptide Count: <span id="pv" style="color:var(--terra)">0</span></label>
+<label class="form-label fw-bold">Search Gene</label>
+<input class="form-control mb-3" id="tableSearch" placeholder="e.g. INS" oninput="filterTable()">
+<label class="form-label fw-bold">Min Peptide Count: <span id="pv" style="color:var(--red)">0</span></label>
 <input type="range" class="form-range" id="pep" min="0" max="436" value="0" oninput="document.getElementById('pv').textContent=this.value;filterTable()">
-<label class="form-label fw-bold mt-3">Min Islet Abundance: <span id="iv" style="color:var(--terra)">0</span></label>
+<label class="form-label fw-bold mt-3">Min Islet Abundance: <span id="iv" style="color:var(--red)">0</span></label>
 <input type="range" class="form-range" id="isl" min="0" max="13399" value="0" oninput="document.getElementById('iv').textContent=this.value;filterTable()">
-<hr><div class="text-center"><div style="font-size:2rem;color:var(--terra);font-weight:700" id="cnt">0</div><small>proteins shown</small></div>
+<hr><div class="text-center"><div style="font-size:2rem;color:var(--red);font-weight:700" id="cnt">0</div><small>proteins shown</small></div>
 </div></div></div>
 <div class="col-md-9"><div class="card"><div class="p-2" style="overflow:auto;max-height:700px"><table class="table table-sm table-hover"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></div></div>
 </div>
@@ -64,27 +135,26 @@ body{font-family:system-ui,sans-serif;background:var(--cream);color:var(--ink);m
 </div>
 </div>
 <script>
-// ===== CONFIG: YOUR EXACT COLUMNS =====
-const ID_COLS=['accession','Uniprot','GeneSy','description'];
-const ISLET=[ // striking terracotta tones, in your preferred order
-{key:'EndoC BH1',label:'EndoC-BH1',color:'#C08552'},
-{key:'Islets',label:'Islets (untreated)',color:'#D49A6A'},
-{key:'Islets_cytokine',label:'Islets (treated)',color:'#B5703C'},
-{key:'Alpha cells',label:'Alpha cells',color:'#E0B589'},
-{key:'Beta cells',label:'Beta cells',color:'#A65E2E'}
+// ===== CONFIG =====
+const ISLET=[
+{key:'EndoC BH1',label:'EndoC-BH1'},
+{key:'Islets',label:'Islets (untreated)'},
+{key:'Islets_cytokine',label:'Islets (treated)'},
+{key:'Alpha cells',label:'Alpha cells'},
+{key:'Beta cells',label:'Beta cells'}
 ];
 const TISSUES=['Pancreas','Frontal cortex','Adrenalgland','Bcells','CD4cells','CD8cells','Monocyte','NKcells','Platelet','Colon','Esophagus','Gallbladder','Heart','Kidney','Liver','Lung','Ovary','Prostate','Rectum','Retina','Spinalcord','Testis','Urinarybladder'];
-const TISSUE_COLOR='#A89B86';
-
+let sortMode='organ';
 let DATA=[],selected=new Set();
 
 // ===== LOAD CSV =====
 Papa.parse('data/proteome_data.csv',{
-  download:true,header:true,dynamicTyping:false,skipEmptyLines:true,
+  download:true,header:true,skipEmptyLines:true,
   complete:r=>{
     DATA=r.data;
     document.getElementById('status').style.display='none';
     document.getElementById('app').style.display='block';
+    document.getElementById('geneCount').textContent=DATA.length.toLocaleString();
     initSearch();buildTable();
     console.log('✅ Loaded '+DATA.length+' proteins');
   },
@@ -93,7 +163,7 @@ Papa.parse('data/proteome_data.csv',{
 
 function num(v){let n=parseFloat(v);return isNaN(n)?0:n;}
 
-// ===== SEARCH SETUP =====
+// ===== SEARCH =====
 function initSearch(){
   const dl=document.getElementById('dl');
   [...new Set(DATA.map(d=>d.GeneSy).filter(Boolean))].sort().forEach(g=>{
@@ -104,75 +174,133 @@ function initSearch(){
   });
 }
 
-// ===== GENE CHIPS =====
 function addGene(g){
-  selected.add(g);
-  renderChips();
+  g=g.trim();if(!g)return;
+  if(!DATA.some(d=>d.GeneSy===g)){alert('Gene "'+g+'" not found');return;}
+  selected.add(g);renderChips();plot();
 }
 function renderChips(){
   document.getElementById('chips').innerHTML=[...selected].map(g=>
     `<span class="chip">${g}<span onclick="removeGene('${g}')">×</span></span>`
   ).join('');
 }
-function removeGene(g){selected.delete(g);renderChips();}
+function removeGene(g){selected.delete(g);renderChips();plot();}
 
 // ===== UPLOAD =====
 document.getElementById('upload').addEventListener('change',function(e){
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();
   r.onload=ev=>{
-    ev.target.result.split(/[\r\n,]+/).map(s=>s.trim()).filter(Boolean).forEach(g=>selected.add(g));
+    ev.target.result.split(/[\r\n,]+/).map(s=>s.trim()).filter(Boolean).forEach(g=>{
+      if(DATA.some(d=>d.GeneSy===g))selected.add(g);
+    });
     renderChips();plot();
   };
   r.readAsText(f);
 });
 
+// ===== SORT =====
+function setSort(mode){
+  sortMode=mode;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  ({organ:'sortOrgan',expression:'sortExpr',alpha:'sortAlpha'})[mode]&&
+    document.getElementById(({organ:'sortOrgan',expression:'sortExpr',alpha:'sortAlpha'})[mode]).classList.add('active');
+  plot();
+}
+
+function buildAxis(row){
+  let items=[
+    ...ISLET.map(i=>({label:i.label,val:num(row[i.key])})),
+    ...TISSUES.map(t=>({label:t,val:num(row[t])}))
+  ];
+  if(sortMode==='expression') items.sort((a,b)=>b.val-a.val);
+  else if(sortMode==='alpha') items.sort((a,b)=>a.label.localeCompare(b.label));
+  return items;
+}
+
 // ===== PLOT =====
 function plot(){
-  if(selected.size===0){alert('Search or upload at least one gene first');return;}
-  const rows=DATA.filter(d=>selected.has(d.GeneSy));
-  if(rows.length===0){alert('No matching genes found');return;}
+  const container=document.getElementById('plot');
+  const rows=[...selected].map(g=>DATA.find(d=>d.GeneSy===g)).filter(Boolean);
 
-  const cats=[...ISLET.map(i=>i.label),...TISSUES];
+  if(rows.length===0){
+    container.style.height='600px';
+    container.innerHTML='<p style="text-align:center;color:#999;padding-top:3rem">Search a gene to begin</p>';
+    return;
+  }
 
-  // ===== HEATMAP for >2 genes =====
+  // ===== HEATMAP for 3+ genes =====
   if(rows.length>2){
-    const z=rows.map(row=>[...ISLET.map(i=>num(row[i.key])),...TISSUES.map(t=>num(row[t]))]);
-    const genes=rows.map(r=>r.GeneSy);
+    container.style.height='600px';
+    container.innerHTML='';
+
+    // build ONE consistent column order (shared across all genes)
+    const allKeys=[...ISLET.map(i=>({label:i.label,key:i.key})),
+                   ...TISSUES.map(t=>({label:t,key:t}))];
+    // determine order based on sortMode using SUMMED values across all genes
+    let order=allKeys.map(k=>{
+      const total=rows.reduce((s,row)=>s+num(row[k.key]),0);
+      return {label:k.label,key:k.key,total:total};
+    });
+    if(sortMode==='expression') order.sort((a,b)=>b.total-a.total);
+    else if(sortMode==='alpha') order.sort((a,b)=>a.label.localeCompare(b.label));
+    // 'organ' keeps default order
+
+    const cats=order.map(o=>o.label);
+    // build z using the SAME column order for every gene
+    const z=rows.map(row=>order.map(o=>num(row[o.key])));
+
     Plotly.newPlot('plot',[{
-      z:z,
-      x:cats,
-      y:genes,
+      z:z,x:cats,y:rows.map(r=>r.GeneSy),
       type:'heatmap',
-      colorscale:[[0,'#F5F1E8'],[0.3,'#B5C4A6'],[0.6,'#8A9A7B'],[1,'#C08552']],
-      colorbar:{title:'Spectral<br>Counts'}
+      zmin:0,
+      colorscale:[[0,'#FFFFFF'],[0.0001,'#A2DAE0'],[0.5,'#0E49B5'],[1,'#ED0101']],
+      colorbar:{title:'Spectral<br>Counts'},
+      hovertemplate:'%{y}<br>%{x}<br>Abundance: %{z:.2f}<extra></extra>'
     }],{
       title:rows.length+' Proteins — Abundance Heatmap',
-      xaxis:{title:'Sample / Tissue',tickangle:-45},
+      xaxis:{title:'Sample / Tissue',tickangle:-45,automargin:true},
       yaxis:{title:'Gene',automargin:true},
-      margin:{b:140,l:100},
-      paper_bgcolor:'#F5F1E8',plot_bgcolor:'#fff'
+      margin:{b:160,l:110},
+      paper_bgcolor:'#fff',plot_bgcolor:'#fff'
     },{responsive:true});
     return;
   }
 
-  // ===== BAR CHART for 1-2 genes =====
-  const traces=rows.map(row=>({
-    x:cats,
-    y:[...ISLET.map(i=>num(row[i.key])),...TISSUES.map(t=>num(row[t]))],
-    name:row.GeneSy,
-    type:'bar',
-    marker:{color:[...ISLET.map(i=>i.color),...TISSUES.map(()=>TISSUE_COLOR)]}
-  }));
-
-  Plotly.newPlot('plot',traces,{
-    title:rows.length===1?rows[0].GeneSy+' — '+rows[0].description:'Selected Proteins',
-    xaxis:{title:'Sample / Tissue',tickangle:-45},
-    yaxis:{title:'Spectral Counts (abundance)'},
-    barmode:rows.length>1?'group':'stack',
-    margin:{b:140},
-    paper_bgcolor:'#F5F1E8',plot_bgcolor:'#fff'
-  },{responsive:true});
+  // ===== STACKED BAR GRAPHS for 1-2 genes =====
+  container.innerHTML='';
+  container.style.height=(rows.length*420)+'px';
+  rows.forEach((row,idx)=>{
+    const axis=buildAxis(row);
+    const div=document.createElement('div');
+    div.id='g'+idx;div.style.height='400px';
+    container.appendChild(div);
+    const shapes=axis.map((a,i)=>({
+      type:'rect',xref:'x',yref:'paper',
+      x0:i-0.5,x1:i+0.5,y0:0,y1:1,
+      fillcolor:i%2===0?'rgba(0,0,0,0.04)':'rgba(0,0,0,0)',
+      line:{width:0},layer:'below'
+    }));
+    if(sortMode==='organ'){
+      shapes.push({type:'line',xref:'x',yref:'paper',
+        x0:ISLET.length-0.5,x1:ISLET.length-0.5,y0:0,y1:1,
+        line:{color:'#888',width:2,dash:'dash'}});
+    }
+    Plotly.newPlot(div.id,[{
+      x:axis.map(a=>a.label),y:axis.map(a=>a.val),
+      type:'bar',
+      marker:{color:'#0E49B5'},
+      text:axis.map(a=>a.val>0?a.val.toFixed(1):''),
+      textposition:'outside',
+      hovertemplate:'%{x}<br>Abundance: %{y:.2f}<extra></extra>'
+    }],{
+      title:row.GeneSy+' — '+(row.description||'').split(' OS=')[0],
+      xaxis:{tickangle:-45,automargin:true},
+      yaxis:{title:'Spectral Counts'},
+      shapes:shapes,margin:{b:140,t:50},
+      paper_bgcolor:'#fff',plot_bgcolor:'#fff',showlegend:false
+    },{responsive:true});
+  });
 }
 
 function reset(){
@@ -180,23 +308,26 @@ function reset(){
   document.getElementById('plot').innerHTML='';
   document.getElementById('search').value='';
 }
-
 function dlPlot(){
-  Plotly.downloadImage('plot',{format:'png',width:1400,height:700,filename:'proteome_plot'});
+  Plotly.downloadImage('g0',{format:'png',width:1400,height:700,filename:'proteome_plot'});
 }
 
 // ===== DATA TABLE =====
 function buildTable(){
-  const cols=['GeneSy','Uniprot','accession','CountOfpeptide','All_Islet Cells','Pancreas','Liver'];
+  const cols=['GeneSy','Uniprot','accession','Pancreas','Liver'];
   document.getElementById('thead').innerHTML='<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
   filterTable();
 }
-
 function filterTable(){
-  const minPep=+document.getElementById('pep').value;
-  const minIsl=+document.getElementById('isl').value;
-  const cols=['GeneSy','Uniprot','accession','CountOfpeptide','All_Islet Cells','Pancreas','Liver'];
-  const filtered=DATA.filter(d=>num(d.CountOfpeptide)>=minPep && num(d['All_Islet Cells'])>=minIsl);
+  const minPep=+(document.getElementById('pep')?.value||0);
+  const minIsl=+(document.getElementById('isl')?.value||0);
+  const search=(document.getElementById('tableSearch')?.value||'').toLowerCase();
+  const cols=['GeneSy','Uniprot','accession','Pancreas','Liver'];
+  const filtered=DATA.filter(d=>
+    num(d.CountOfpeptide)>=minPep &&
+    num(d['All_Islet Cells'])>=minIsl &&
+    (search===''||(d.GeneSy||'').toLowerCase().includes(search))
+  );
   document.getElementById('cnt').textContent=filtered.length;
   document.getElementById('tbody').innerHTML=filtered.slice(0,500).map(d=>
     '<tr>'+cols.map(c=>`<td>${d[c]||''}</td>`).join('')+'</tr>'
